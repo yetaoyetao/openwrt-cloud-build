@@ -19,7 +19,7 @@ on:
       packages:
         description: '附加软件包（空格分隔；会自动保留设备默认包，这里填的是追加项）'
         required: false
-        default: 'luci-ssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl minieap luci-proto-minieap luci-i18n-minieap-zh-cn luci-compat bash tc-full ip-full kmod-sched kmod-veth kmod-netem kmod-sched-ctinfo kmod-ifb kmod-sched-cake kmod-sched-red'
+        default: 'luci-ssl-openssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl minieap luci-proto-minieap luci-i18n-minieap-zh-cn luci-compat bash tc-full ip-full kmod-sched kmod-veth kmod-netem kmod-sched-ctinfo kmod-ifb kmod-sched-cake kmod-sched-red'
 
 jobs:
   build:

@@ -1,0 +1,39 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────
+# OpenWrt 首次启动脚本（uci-defaults）
+#
+# 固件第一次开机时由系统自动执行一次，执行完后本文件被删除。
+# 想往固件里预置什么都在这里写：改配置、写文件、执行命令。
+# 修改后重新跑一次编译（Run workflow）即可生效。
+# ─────────────────────────────────────────────────────────────
+
+# ── 主机名 + 时区（无风险，已启用）──
+uci set system.@system[0].hostname='XMUT-Router'
+uci set system.@system[0].timezone='CST-8'
+uci set system.@system[0].zonename='Asia/Shanghai'
+
+# ── NTP 换成国内源 ──
+uci -q delete system.ntp.server
+uci add_list system.ntp.server='ntp.aliyun.com'
+uci add_list system.ntp.server='cn.pool.ntp.org'
+
+# ── 管理地址：OpenWrt 默认 192.168.1.1，要改网段就取消注释并改 ──
+# uci set network.lan.ipaddr='192.168.31.1'
+
+# ── 预置 WiFi：OpenWrt 默认无线是关闭的，需要就取消注释并改 ──
+# （radio0 一般是 2.4G，radio1 一般是 5G；以实际 /etc/config/wireless 为准）
+# uci set wireless.radio0.disabled='0'
+# uci set wireless.default_radio0.ssid='XMUT-WIFI'
+# uci set wireless.default_radio0.encryption='psk2'
+# uci set wireless.default_radio0.key='改成你的密码'
+# uci set wireless.radio1.disabled='0'
+# uci set wireless.default_radio1.ssid='XMUT-WIFI-5G'
+# uci set wireless.default_radio1.encryption='psk2'
+# uci set wireless.default_radio1.key='改成你的密码'
+
+# ── 预置 router-agent（可选）：把 agent 文件按固件内路径放进 files/ 目录，
+#    例如 files/etc/xmut-wifi-agent/，然后在这里执行安装 ──
+# /etc/xmut-wifi-agent/install-openwrt.sh
+
+uci commit
+exit 0

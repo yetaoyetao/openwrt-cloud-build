@@ -1,0 +1,67 @@
+name: Build OpenWrt Firmware
+
+# 触发方式：手动。在 GitHub 仓库的 Actions 页 → 左侧选本工作流 → Run workflow。
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'OpenWrt 版本（如 24.10.7；去 firmware-selector.openwrt.org 看当前版本号）'
+        required: true
+        default: '24.10.7'
+      target:
+        description: 'Target 平台（如 ramips/mt7621）'
+        required: true
+        default: 'ramips/mt7621'
+      profile:
+        description: 'Profile 设备（如 xiaomi_mi-router-3g）'
+        required: true
+        default: 'xiaomi_mi-router-3g'
+      packages:
+        description: '附加软件包（空格分隔；会自动保留设备默认包，这里填的是追加项）'
+        required: false
+        default: 'luci-ssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 zstd 解压工具
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+
+      - name: 下载并解压 ImageBuilder
+        env:
+          RELEASE: ${{ inputs.release }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          TARGET_FLAT="${TARGET//\//-}"
+          IB_NAME="openwrt-imagebuilder-${RELEASE}-${TARGET_FLAT}.Linux-x86_64"
+          IB_URL="https://downloads.openwrt.org/releases/${RELEASE}/targets/${TARGET}/${IB_NAME}.tar.zst"
+          echo "下载: ${IB_URL}"
+          curl -fL --retry 3 --retry-delay 5 -o imagebuilder.tar.zst "${IB_URL}"
+          tar --zstd -xf imagebuilder.tar.zst
+          echo "IB_DIR=${IB_NAME}" >> "$GITHUB_ENV"
+
+      - name: 打包固件（含自定义文件）
+        env:
+          PROFILE: ${{ inputs.profile }}
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}/${IB_DIR}"
+          make image PROFILE="${PROFILE}" PACKAGES="${PACKAGES}" FILES="${GITHUB_WORKSPACE}/files"
+          echo "== 产物清单 =="
+          find bin/targets -maxdepth 3 -type f \( -name "*.bin" -o -name "*.itb" -o -name "*sha256sums*" \) -exec ls -lh {} \;
+
+      - name: 上传固件
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ inputs.profile }}-${{ inputs.release }}
+          path: |
+            openwrt-imagebuilder-*/bin/targets/**
+          if-no-files-found: error
+          retention-days: 30

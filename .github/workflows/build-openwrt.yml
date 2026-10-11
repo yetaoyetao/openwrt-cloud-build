@@ -69,6 +69,6 @@ jobs:
         with:
           name: firmware-${{ inputs.profile }}-${{ inputs.release }}
           path: |
-            openwrt-imagebuilder-*/bin/targets/**
+            ${{ env.IB_DIR }}/bin/targets/**
           if-no-files-found: error
           retention-days: 30

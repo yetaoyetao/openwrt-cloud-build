@@ -1,8 +1,9 @@
 # OpenWrt 云编译（GitHub Actions）
 
+基于 **ImmortalWrt**（OpenWrt 的国内增强分支，minieap 这类校园网插件只有它有现成包）的云编译。
 零本地环境：所有编译都在 GitHub 的服务器上跑，你只需要浏览器 + 一个免费 GitHub 账号。
 
-**产出**：针对指定设备、包含指定软件包和自定义文件的 OpenWrt 固件（.bin + sha256sums 校验文件）。
+**产出**：针对指定设备、包含指定软件包和自定义文件的固件（`.bin` + `sha256sums` 校验文件）。
 
 **耗时**：约 5~15 分钟。  
 **成本**：公开仓库完全免费。
@@ -53,14 +54,14 @@
 
 | 参数         | 说明          | 默认（小米 R3G）                                                              |
 | ---------- | ----------- | ----------------------------------------------------------------------- |
-| `release`  | OpenWrt 版本号 | `24.10.7`                                                               |
+| `release`  | ImmortalWrt 版本号 | `24.10.1`                                                          |
 | `target`   | 平台架构        | `ramips/mt7621`                                                         |
 | `profile`  | 设备型号        | `xiaomi_mi-router-3g`                                                   |
-| `packages` | 附加软件包（空格分隔） | `luci-ssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl` |
+| `packages` | 附加软件包（空格分隔） | `luci-ssl ... minieap luci-proto-minieap luci-i18n-minieap-zh-cn luci-compat bash tc-full ip-full kmod-*（7 个调度模块）` |
 
 **给别的设备编译时**，这两个值这样查：
 
-1. 打开 <https://firmware-selector.openwrt.org>；
+1. 打开 <https://firmware-selector.immortalwrt.org>；
 2. 页面上选好你要的设备；
 3. 看浏览器地址栏，形如 `?target=ramips%2Fmt7621&id=xiaomi_mi-router-3g`；
    - `target` = `ramips/mt7621`（把 `%2F` 换成 `/`）
@@ -69,6 +70,21 @@
 **加软件包**：把包名空格分隔填进 `packages` 参数（页面触发时填，或改 `.github/workflows/build-openwrt.yml` 里的 default 长期生效）。设备默认包含的包系统会自动保留，这里填的是追加项。
 
 **每次修改文件后**，要重新跑一次 Run workflow 才会生效。
+
+---
+
+## 固件里已经内置了什么（当前配置）
+
+| 插件 | 作用 | 来源 |
+|---|---|---|
+| LuCI + 中文界面 | 路由器管理网页 | ImmortalWrt 源 |
+| **minieap** + luci-proto-minieap + 中文包 | 锐捷校园网认证客户端（替代 Padavan 的 mentohust） | ImmortalWrt 源 |
+| **qosmate** + LuCI 界面 | QoS 流量管理（CAKE/HFSC 队列、设备限速、游戏流量优先） | 文件注入（上游本就是这种分发方式） |
+| **timedreboot** + 中文包 | 定时重启（LuCI「系统 → 定时重启」） | 文件注入（老插件，靠 luci-compat 兼容层运行） |
+| 依赖工具 | tc-full / ip-full / 7 个内核调度模块 / bash / curl / wget-ssl / ca 证书 | ImmortalWrt 源 |
+
+> 两个插件服务（qosmate、timedreboot）已通过首启脚本默认启用（等同于 `init.d enable`），配置入口都在 LuCI 里。
+> 注意：timedreboot 是 2022 年的老插件，理论上兼容，若刷机后发现它的界面有问题，找一个叫 `luci-app-autoreboot` 的现役插件替代（功能相同）即可，或告诉我。
 
 ---
 
@@ -88,7 +104,8 @@
 | 编译失败（红 ✗）           | 点进运行记录看哪个步骤红了。最常见：版本号写错（去 firmware-selector 确认）、包名不存在（少打一个字都会失败） |
 | 找不到下载按钮             | Artifacts 在运行记录页面**最底部**；公开仓库产物保留 30 天                           |
 | 想换个设备编译             | 改 `target` / `profile` 两个参数重新跑，其它不用动                             |
-| 想编译改过源码的固件（加驱动、改内核） | 这个仓库走的是官方 ImageBuilder 快速打包，不支持改源码；需要的话另配一套全量源码编译工作流             |
+| 想编译改过源码的固件（加驱动、改内核） | 这个仓库走的是 ImageBuilder 快速打包，不支持改源码；需要的话另配一套全量源码编译工作流             |
+| qosmate / 定时重启 在哪配置 | 刷机后进 LuCI：qosmate 在「网络 → QoSmate」，定时重启在「系统 → 定时重启」；两个服务默认已启用 |
 | 免费额度                | Public 仓库的 Actions 标准执行器完全免费；Private 仓库每月 2000 分钟，本流程单次约 10 分钟   |
 
 ---
@@ -97,7 +114,12 @@
 
 ```
 openwrt-cloud-build/
-├── .github/workflows/build-openwrt.yml   # 云编译工作流（不用改也能用）
-├── files/etc/uci-defaults/99-xmut-defaults  # 首启脚本（预置配置写这里）
-└── README.md                             # 本文件
+├── .github/workflows/build-openwrt.yml       # 云编译工作流（不用改也能用）
+├── files/                                    # 这里的内容全部原样注入固件
+│   ├── etc/uci-defaults/99-xmut-defaults     # 首启脚本（主机名/时区/NTP/启用插件服务）
+│   ├── etc/init.d/qosmate、etc/qosmate.sh    # qosmate 后端
+│   ├── www/luci-static/.../view/qosmate/     # qosmate 的 LuCI 界面文件
+│   ├── etc/init.d/timedreboot、usr/bin/dorboot  # 定时重启
+│   └── usr/libexec/rpcd/、usr/share/luci/    # 两个插件的后端接口与菜单注册
+└── README.md                                 # 本文件
 ```

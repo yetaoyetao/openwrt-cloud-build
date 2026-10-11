@@ -17,6 +17,10 @@ uci -q delete system.ntp.server
 uci add_list system.ntp.server='ntp.aliyun.com'
 uci add_list system.ntp.server='cn.pool.ntp.org'
 
+# ── 启用内置插件服务（等同 openwrt 官方的 init.d enable；不预启动，等用户先在 LuCI 里配置）──
+[ -x /etc/init.d/qosmate ] && /etc/init.d/qosmate enable
+[ -x /etc/init.d/timedreboot ] && /etc/init.d/timedreboot enable
+
 # ── 管理地址：OpenWrt 默认 192.168.1.1，要改网段就取消注释并改 ──
 # uci set network.lan.ipaddr='192.168.31.1'
 

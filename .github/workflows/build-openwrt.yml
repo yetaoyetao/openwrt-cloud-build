@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: 'OpenWrt 版本（如 24.10.7；去 firmware-selector.openwrt.org 看当前版本号）'
+        description: 'ImmortalWrt 版本（当前用 24.10.1；minieap / 内核模块等只有 ImmortalWrt 源提供）'
         required: true
-        default: '24.10.7'
+        default: '24.10.1'
       target:
         description: 'Target 平台（如 ramips/mt7621）'
         required: true
@@ -19,7 +19,7 @@ on:
       packages:
         description: '附加软件包（空格分隔；会自动保留设备默认包，这里填的是追加项）'
         required: false
-        default: 'luci-ssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl'
+        default: 'luci-ssl luci-i18n-base-zh-cn ca-bundle ca-certificates wget-ssl curl minieap luci-proto-minieap luci-i18n-minieap-zh-cn luci-compat bash tc-full ip-full kmod-sched kmod-veth kmod-netem kmod-sched-ctinfo kmod-ifb kmod-sched-cake kmod-sched-red'
 
 jobs:
   build:
@@ -39,8 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           TARGET_FLAT="${TARGET//\//-}"
-          IB_NAME="openwrt-imagebuilder-${RELEASE}-${TARGET_FLAT}.Linux-x86_64"
-          IB_URL="https://downloads.openwrt.org/releases/${RELEASE}/targets/${TARGET}/${IB_NAME}.tar.zst"
+          IB_NAME="immortalwrt-imagebuilder-${RELEASE}-${TARGET_FLAT}.Linux-x86_64"
+          IB_URL="https://downloads.immortalwrt.org/releases/${RELEASE}/targets/${TARGET}/${IB_NAME}.tar.zst"
           echo "下载: ${IB_URL}"
           curl -fL --retry 3 --retry-delay 5 -o imagebuilder.tar.zst "${IB_URL}"
           tar --zstd -xf imagebuilder.tar.zst
@@ -52,6 +52,13 @@ jobs:
           PACKAGES: ${{ inputs.packages }}
         run: |
           set -euo pipefail
+          chmod +x files/etc/init.d/qosmate files/etc/init.d/qosmate-autorate \
+                   files/etc/qosmate.sh files/etc/qosmate-autorate.sh \
+                   files/etc/qosmate-autorate-tc.sh \
+                   files/etc/hotplug.d/iface/13-qosmateHotplug \
+                   files/etc/init.d/timedreboot files/usr/bin/dorboot \
+                   files/usr/libexec/rpcd/luci.qosmate \
+                   files/usr/libexec/rpcd/luci.qosmate_stats
           cd "${GITHUB_WORKSPACE}/${IB_DIR}"
           make image PROFILE="${PROFILE}" PACKAGES="${PACKAGES}" FILES="${GITHUB_WORKSPACE}/files"
           echo "== 产物清单 =="

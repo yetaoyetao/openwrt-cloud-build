@@ -1,0 +1,3 @@
+# 本仓库所有文件都面向 Linux（固件内文件 + GitHub Actions），统一强制 LF 行尾。
+# 避免 Windows 上编辑/提交时被转成 CRLF，导致脚本进固件后无法执行。
+* text=auto eol=lf
